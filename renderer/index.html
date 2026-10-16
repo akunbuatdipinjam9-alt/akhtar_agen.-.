@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org; connect-src 'none'; frame-src 'self' data: blob:; media-src 'self' data: blob:;" />
+<title>Akhtar Agent</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynHTnLkIT5qRmVqEoGQFj/4Z5JQk=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.5l2.4 6.1 6.6.4-5.1 4.2 1.7 6.4L12 16l-5.6 3.6 1.7-6.4L3 9l6.6-.4z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2l2 2h8.8A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M15 4.5v15" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+
+<div id="app">
+  <aside class="sidebar" aria-label="Navigasi">
+    <div class="brand">
+      <svg class="brand-mark" aria-hidden="true"><use href="#i-star"/></svg>
+      <span class="brand-name">Akhtar Agent</span>
+    </div>
+
+    <button id="newChatBtn" class="btn btn-primary btn-block new-chat"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Percakapan baru</button>
+
+    <div class="workspace-box">
+      <div class="side-heading">Project</div>
+      <button id="workspaceBtn" class="workspace-button" title="Pilih folder yang boleh dibaca dan diubah agen">
+        <svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg>
+        <span id="workspaceName">Pilih folder project</span>
+      </button>
+      <button id="ghostCreateBtn" class="link-button" title="Agen bekerja di salinan folder. Perubahan baru masuk ke project asli setelah kamu terapkan.">Coba dulu di salinan aman</button>
+      <div id="ghostBanner" class="ghost-banner hidden">
+        <p><strong>Mode salinan aman.</strong> Perubahan belum menyentuh project asli.</p>
+        <div class="ghost-actions"><button id="ghostApplyBtn" class="btn btn-small btn-primary">Terapkan</button><button id="ghostDiscardBtn" class="btn btn-small">Buang</button></div>
+      </div>
+    </div>
+
+    <div class="side-heading">Riwayat</div>
+    <nav class="conv-list" id="convList" aria-label="Riwayat percakapan"></nav>
+
+    <div class="sidebar-footer">
+      <button id="settingsBtn" class="sidebar-action"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Pengaturan</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="chat-only-title" aria-label="Tampilan utama">Obrolan</div>
+
+      <div class="topbar-status" id="topbarStatusWrap" aria-live="polite">
+        <svg class="status-star" aria-hidden="true"><use href="#i-star"/></svg>
+        <span id="topbarStatus"></span>
+      </div>
+
+      <div class="topbar-right">
+        <label class="model-control" title="AI yang menjawab dan bekerja">
+          <span class="visually-hidden">Penyedia AI</span>
+          <select id="providerSelect"></select>
+          <span class="visually-hidden">Model</span>
+          <select id="modelSelect"></select>
+        </label>
+        <button id="refreshPrimaryModels" class="icon-button" type="button" title="Muat semua model gratis xKiro / refresh daftar model" aria-label="Segarkan daftar model AI">⟳</button>
+        <button id="panelToggle" class="icon-button" title="Tampilkan/sembunyikan panel progres" aria-pressed="true"><svg class="ico" aria-hidden="true"><use href="#i-panel"/></svg></button>
+      </div>
+    </header>
+
+    <section class="body">
+      <div class="chat-col">
+        <div id="resumeBanner" class="resume-banner hidden" role="status" aria-live="polite">
+          <div class="resume-copy"><strong id="resumeTitle">Tugas terputus ditemukan</strong><span id="resumeDetail">Bisa dilanjutkan dari checkpoint aman.</span></div>
+          <div class="resume-actions"><button id="resumeTaskBtn" class="btn btn-small btn-primary" type="button">Lanjutkan</button><button id="dismissResumeBtn" class="btn btn-small" type="button">Abaikan</button></div>
+        </div>
+        <div class="messages" id="messages" aria-live="polite"></div>
+
+        <div class="empty-state" id="emptyState">
+          <svg class="empty-mark" aria-hidden="true"><use href="#i-star"/></svg>
+          <h1 class="empty-title">Mau dikerjakan apa?</h1>
+          <p class="empty-sub">Tulis permintaanmu seperti ke rekan kerja. Kalau agen perlu mengubah file atau membuka sesuatu, dia minta izin dulu.</p>
+          <div class="starters" id="starters">
+            <button class="starter" data-prompt="Jelaskan struktur project ini dan bagian mana yang paling penting.">Jelaskan struktur project ini</button>
+            <button class="starter" data-prompt="Cari bug di project ini, lalu usulkan perbaikannya satu per satu.">Cari bug dan usulkan perbaikan</button>
+            <button class="starter" data-prompt="Buat ringkasan singkat dari halaman web ini: ">Ringkas halaman web</button>
+            <button class="starter" data-prompt="Buka Akhtar Lab dan simulasikan air dicampur garam. Jelaskan hasilnya dengan singkat dan seru.">🧪 Coba Akhtar Lab</button>
+          </div>
+        </div>
+
+        <section class="inline-tool-dock hidden" id="inlineToolDock" aria-label="Preview interaktif di obrolan">
+          <header class="inline-tool-dock-header">
+            <strong id="inlineToolDockTitle">Preview interaktif</strong>
+            <button id="inlineToolDockClose" class="btn btn-small" type="button" aria-label="Tutup preview interaktif">Tutup preview</button>
+          </header>
+    <section class="map-body" id="mapBody" style="display:none">
+      <div class="map-toolbar">
+        <input id="mapSearch" class="text-input" placeholder="Tempat atau alamat tujuan" />
+        <button id="mapSearchBtn" class="btn btn-primary">Minta agen tunjukkan</button>
+        <button id="mapLocateBtn" class="btn">Lokasi saya</button>
+        <button id="mapStopNavBtn" class="btn btn-danger hidden">Hentikan navigasi</button>
+      </div>
+      <div class="map-status" id="mapStatus">Peta siap. Perkiraan waktu belum memperhitungkan macet.</div>
+      <div id="mapCanvas" class="map-canvas" aria-label="Peta interaktif"></div>
+      <div class="map-nav-card hidden" id="mapNavCard"><strong id="mapNavTitle">Navigasi</strong><span id="mapNavEta"></span><span id="mapNavNext"></span></div>
+    </section>
+
+    <section class="browser-body" id="browserBody">
+      <div class="browser-toolbar">
+        <button id="browserBack" class="icon-button" title="Kembali" aria-label="Kembali">‹</button>
+        <button id="browserForward" class="icon-button" title="Maju" aria-label="Maju">›</button>
+        <button id="browserReload" class="icon-button" title="Muat ulang" aria-label="Muat ulang">↻</button>
+        <input id="browserAddress" class="text-input browser-address" placeholder="Cari atau ketik alamat web" />
+        <button id="browserGo" class="btn btn-primary">Buka</button>
+        <button id="askScreenBtn" class="btn" title="Klik satu bagian halaman, lalu tanyakan ke agen">Tanya bagian ini</button>
+        <button id="browserNewTab" class="icon-button" title="Tab baru" aria-label="Tab baru"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      </div>
+      <div class="browser-tabstrip" id="browserTabstrip"></div>
+      <div class="browser-surface" id="browserSurface">
+        <div class="browser-empty" id="browserEmpty">Belum ada tab. Ketik alamat di atas, atau minta agen membuka halaman.</div>
+      </div>
+    </section>
+        </section>
+
+        <div class="composer-wrap">
+          <div class="composer">
+            <textarea id="input" placeholder="Tulis permintaanmu…" rows="1" aria-label="Pesan untuk agen"></textarea>
+            <div class="composer-actions">
+              <button id="takeoverBtn" class="btn hidden" title="Jeda agen di titik aman supaya kamu bisa mengambil alih">Ambil alih</button>
+              <button id="continueBtn" class="btn btn-primary hidden">Lanjutkan agen</button>
+              <button id="stopBtn" class="btn btn-danger hidden">Hentikan</button>
+              <button id="sendBtn" class="btn btn-primary send-btn" aria-label="Kirim"><svg class="ico" aria-hidden="true"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+          <div class="mode-row">
+            <div class="mode-switch" id="modeSwitch" role="radiogroup" aria-label="Cara agen bekerja">
+              <button data-mode="chat" class="mode-btn" role="radio">Tanya</button>
+              <button data-mode="assist" class="mode-btn active" role="radio">Dibantu</button>
+              <button data-mode="agent" class="mode-btn" role="radio">Otomatis</button>
+            </div>
+            <p class="mode-hint" id="modeHint">Agen minta izin setiap kali mau mengubah sesuatu.</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side-panel" id="sidePanel" aria-label="Progres tugas">
+        <div class="panel-tabs" role="tablist">
+          <button class="panel-tab active" data-panel="progress" role="tab">Progres</button>
+          <button class="panel-tab" data-panel="history" role="tab">Jejak</button>
+          <button class="panel-tab" data-panel="results" role="tab">Hasil</button>
+        </div>
+
+        <div class="panel-page" data-page="progress">
+          <section class="panel-block">
+            <h2 class="panel-title">Langkah</h2>
+            <ul class="todo-list" id="todoList"><li class="muted">Belum ada tugas yang berjalan.</li></ul>
+          </section>
+          <section class="panel-block">
+            <h2 class="panel-title">Aktivitas</h2>
+            <div class="activity-log" id="activityLog"></div>
+          </section>
+        </div>
+
+        <div class="panel-page hidden" data-page="history">
+          <section class="panel-block">
+            <div class="panel-title-row"><h2 class="panel-title">Jejak tugas</h2>
+              <div class="panel-actions">
+                <button id="refreshTimeline" class="mini-action" type="button" title="Muat ulang">Muat ulang</button>
+                <button id="diagnoseTaskBtn" class="mini-action" type="button" title="Jelaskan kenapa tugas berhasil atau gagal">Diagnosis</button>
+                <button id="forkTaskBtn" class="mini-action" type="button" title="Mulai percakapan baru dari titik ini dengan pendekatan lain">Cabang baru</button>
+              </div>
+            </div>
+            <div class="timeline" id="timeline"><div class="muted">Jejak muncul saat tugas berjalan.</div></div>
+          </section>
+          <section class="panel-block vision-panel">
+            <div class="panel-title-row"><h2 class="panel-title">Bantuan penglihatan browser</h2><span id="visionModeBadge" class="status-chip">DOM</span></div>
+            <div class="vision-meter"><span><strong id="visionRemaining">3</strong> tersisa untuk tugas ini</span><div class="vision-dots" id="visionDots"><i></i><i></i><i></i></div></div>
+            <p class="panel-note">Agen membaca halaman lewat struktur halamannya. Screenshot hanya dikirim ke AI saat benar-benar buntu, dan itu yang memakai jatah.</p>
+          </section>
+        </div>
+
+        <div class="panel-page hidden" data-page="results">
+          <section class="panel-block"><h2 class="panel-title">File hasil</h2><ul class="side-list" id="artifactList"><li class="muted">Belum ada file hasil.</li></ul></section>
+          <section class="panel-block"><h2 class="panel-title">Titik undo</h2><ul class="side-list" id="checkpointList"><li class="muted">Belum ada titik undo.</li></ul></section>
+          <section class="panel-block"><h2 class="panel-title">Unduhan</h2><ul class="side-list" id="downloadList"><li class="muted">Belum ada unduhan.</li></ul></section>
+          <section class="panel-block"><h2 class="panel-title">Jadwal</h2><ul class="side-list" id="scheduleList"><li class="muted">Belum ada jadwal.</li></ul></section>
+        </div>
+      </aside>
+    </section>
+
+
+  </main>
+
+  <div id="permissionOverlay" class="overlay hidden">
+    <div class="dialog permission-dialog" role="alertdialog" aria-modal="true" aria-labelledby="permTitle">
+      <p class="dialog-kicker">Agen minta izin</p>
+      <h2 class="dialog-title" id="permTitle"></h2>
+      <pre class="perm-detail" id="permSummary"></pre>
+      <pre class="perm-diff hidden" id="permDiff"></pre>
+      <div class="perm-warning hidden" id="permWarning"></div>
+      <div class="dialog-actions">
+        <button class="btn" id="permDeny">Tolak</button>
+        <span class="spacer"></span>
+        <button class="btn hidden" id="permAllowAlways" title="Tidak akan ditanya lagi untuk jenis aksi ini di komputer ini">Selalu izinkan</button>
+        <button class="btn hidden" id="permAllowProject" title="Tidak ditanya lagi untuk jenis aksi ini di project ini">Izinkan di project ini</button>
+        <button class="btn btn-primary" id="permAllowOnce">Izinkan sekali</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsOverlay" class="overlay hidden">
+    <div class="dialog settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-header">
+        <h2 class="dialog-title" id="settingsTitle">Pengaturan</h2>
+        <button class="icon-button" id="settingsClose" aria-label="Tutup pengaturan"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </div>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Bagian pengaturan">
+          <button class="settings-nav-btn active" data-section="models">Model AI</button>
+          <button class="settings-nav-btn" data-section="account">Akun &amp; kredit</button>
+          <button class="settings-nav-btn" data-section="agent">Agen</button>
+          <button class="settings-nav-btn" data-section="integrations">Integrasi</button>
+          <button class="settings-nav-btn" data-section="advanced">Lanjutan</button>
+        </nav>
+
+        <div class="settings-content">
+          <div class="settings-page" data-section="models">
+            <section class="settings-section">
+              <h3 class="settings-section-title">Kunci API</h3>
+              <p class="settings-section-copy">Isi kunci untuk penyedia yang ingin kamu pakai. Kunci disimpan terenkripsi di komputer ini. Modelnya dipilih dari bagian atas layar.</p>
+              <div id="providerRows" class="provider-rows"></div>
+            </section>
+          </div>
+
+          <div class="settings-page hidden" data-section="account">
+            <section class="settings-section">
+              <h3 class="settings-section-title">Akun Akhtar</h3>
+              <div id="billingAuthStatus" class="field-hint">Memeriksa akun…</div>
+              <div id="billingAuthForm" class="billing-auth-form">
+                <input type="email" id="billingEmail" class="text-input" placeholder="Email" autocomplete="email" />
+                <input type="password" id="billingPassword" class="text-input" placeholder="Kata sandi (min. 6 karakter)" autocomplete="current-password" />
+                <div class="field-row"><button class="btn btn-primary" id="billingSignIn" type="button">Masuk</button><button class="btn" id="billingSignUp" type="button">Buat akun</button></div>
+              </div>
+              <button class="btn hidden" id="billingSignOut" type="button">Keluar</button>
+            </section>
+            <section class="settings-section">
+              <h3 class="settings-section-title">Kredit</h3>
+              <div class="credit-wallet-row"><strong id="creditBalance">—</strong><span class="field-hint">dari maksimal 3.000</span></div>
+              <div id="creditRewardStatus" class="field-hint">Masuk untuk melihat kredit.</div>
+            </section>
+            <section class="settings-section">
+              <h3 class="settings-section-title">Paket</h3>
+              <div id="billingPlanGrid" class="billing-plan-grid"><div class="muted">Memuat paket…</div></div>
+              <div id="billingMethods" class="billing-methods"></div>
+              <div class="billing-checkout-row"><span id="billingCheckoutStatus" class="field-hint">Pembayaran diproses aman lewat Stripe di browser.</span><button class="btn btn-primary" id="billingCheckoutBtn" type="button" disabled>Lanjut ke pembayaran</button></div>
+            </section>
+          </div>
+
+          <div class="settings-page hidden" data-section="agent">
+            <section class="settings-section">
+              <h3 class="settings-section-title">Batas kerja agen</h3>
+              <p class="settings-section-copy">Agen berhenti otomatis kalau salah satu batas ini tercapai, supaya tidak berputar terus.</p>
+              <div class="settings-grid">
+                <label class="field">Langkah maksimal per tugas<input type="number" id="setMaxIter" class="text-input" min="1" max="100" /></label>
+                <label class="field">Batas waktu per tugas (menit)<input type="number" id="setRunTimeout" class="text-input" min="1" max="240" /></label>
+              </div>
+            </section>
+            <section class="settings-section">
+              <h3 class="settings-section-title">Pendapat kedua</h3>
+              <p class="settings-section-copy">Untuk tugas yang sulit, AI utama boleh meminta AI lain memeriksa pekerjaannya. AI kedua tidak bisa memakai tools apa pun.</p>
+              <div class="settings-grid">
+                <label class="field">Kapan dipakai
+                  <select id="setCollabMode" class="text-input">
+                    <option value="off">Tidak pernah</option>
+                    <option value="auto">Hanya untuk tugas sulit</option>
+                    <option value="always">Untuk semua tugas besar</option>
+                  </select>
+                </label>
+                <label class="field">Penyedia AI kedua<select id="setSecondaryProvider" class="text-input"></select></label>
+                <label class="field field-wide">Model AI kedua
+                  <div class="field-row"><select id="setSecondaryModel" class="text-input"></select><button class="btn" id="refreshSecondaryModels" type="button">Muat daftar model</button></div>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div class="settings-page hidden" data-section="integrations">
+            <section class="settings-section">
+              <h3 class="settings-section-title">GitHub</h3>
+              <p class="settings-section-copy">Dipakai agen untuk membaca issue dan membuat pull request. Buat token di GitHub › Settings › Developer settings.</p>
+              <label class="field">Personal access token<input type="password" id="setGithubToken" class="text-input" placeholder="ghp_…" /></label>
+              <div class="inline-actions"><button class="btn" id="saveGithubToken">Simpan token</button><span class="p-status" id="githubTokenStatus"></span></div>
+            </section>
+            <section class="settings-section">
+              <h3 class="settings-section-title">Server MCP</h3>
+              <p class="settings-section-copy">Tambahkan tools dari server MCP lokal (stdio). Taruh kunci API di <code>env</code>, bukan di argumen.</p>
+              <textarea id="setMcpServers" class="text-input code-input" rows="7" spellcheck="false" placeholder='[{"id":"my-mcp","command":"npx","args":["-y","nama-paket"]}]'></textarea>
+              <div class="inline-actions"><button class="btn" id="saveMcpServers">Simpan MCP</button><span class="field-hint" id="mcpStatus"></span></div>
+            </section>
+            <section class="settings-section">
+              <h3 class="settings-section-title">Rahasia plugin</h3>
+              <p class="settings-section-copy">Kredensial yang dibutuhkan plugin, disimpan terenkripsi.</p>
+              <div class="secret-grid">
+                <input type="text" id="pluginSecretName" class="text-input" placeholder="Nama, mis. spotify:token" />
+                <input type="password" id="pluginSecretValue" class="text-input" placeholder="Nilai" />
+                <button class="btn" id="savePluginSecret">Simpan</button>
+              </div>
+              <div class="field-hint" id="pluginSecretStatus"></div>
+              <div class="field-hint" id="loadedPluginsList"></div>
+            </section>
+          </div>
+
+          <div class="settings-page hidden" data-section="advanced">
+            <section class="settings-section">
+              <h3 class="settings-section-title">Bantuan penglihatan browser</h3>
+              <p class="settings-section-copy">Kalau agen buntu di sebuah halaman, dia boleh mengirim screenshot ke AI yang bisa melihat gambar.</p>
+              <div class="settings-grid">
+                <label class="field">Mode<select id="setVisionMode" class="text-input"><option value="smart">Hanya saat buntu</option><option value="off">Mati</option></select></label>
+                <label class="field">Jatah per tugas<input type="number" id="setVisionMax" class="text-input" min="1" max="10" value="3" /></label>
+                <label class="field">Penyedia AI penglihatan<select id="setVisionProvider" class="text-input"></select></label>
+                <label class="field">Model penglihatan<input type="text" id="setVisionModel" class="text-input" placeholder="Kosong = pakai model utama" /></label>
+              </div>
+            </section>
+            <section class="settings-section">
+              <h3 class="settings-section-title">Desktop simulasi</h3>
+              <label class="field">Alamat desktop<input type="text" id="setOsUrl" class="text-input" placeholder="Kosong = pakai Akhtar OS bawaan" /></label>
+              <p class="field-hint">Tools <code>computer.*</code> mengendalikan desktop simulasi ini, bukan komputermu.</p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="modal-backdrop hidden" id="previewModal">
+  <div class="preview-modal-card" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+    <header class="preview-head">
+      <div class="preview-head-copy">
+        <div class="preview-kicker">UNIVERSAL PREVIEW · READ ONLY</div>
+        <h2 id="previewTitle">Preview</h2>
+        <div class="preview-meta" id="previewMeta">—</div>
+      </div>
+      <div class="preview-actions">
+        <button class="btn btn-small" id="previewRefreshBtn" type="button">↻ Refresh</button>
+        <button class="icon-button" id="previewCloseBtn" aria-label="Tutup preview"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </div>
+    </header>
+    <div class="preview-body" id="previewBody"><div class="preview-empty">Minta AI membuka file untuk melihat preview.</div></div>
+    <footer class="preview-footer">
+      <span id="previewStatus">Sandboxed preview · tidak mengubah file</span>
+      <button class="btn btn-small" id="previewAskBtn" type="button">Tanya AI tentang file ini</button>
+    </footer>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="labModal">
+  <div class="lab-modal-card" role="dialog" aria-modal="true" aria-labelledby="labTitle">
+    <div class="lab-head">
+      <div>
+        <div class="lab-kicker">AKHTAR LAB · VIRTUAL ONLY</div>
+        <h2 id="labTitle">Lab Sains</h2>
+      </div>
+      <div class="lab-head-actions">
+        <span class="lab-xp" id="labXp">+0 XP</span>
+        <button class="icon-button" id="closeLabModal" aria-label="Tutup Lab"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </div>
+    </div>
+
+    <div class="lab-grid">
+      <section class="lab-stage-card" aria-label="Simulasi virtual">
+        <div class="lab-stage" id="labStage">
+          <div class="lab-placeholder">Minta AI memulai eksperimen virtual ✨</div>
+        </div>
+        <div class="lab-controls" aria-label="Kontrol animasi">
+          <button class="btn btn-small" id="labRestartBtn" type="button">↻ Ulang</button>
+          <button class="btn btn-small" id="labPauseBtn" type="button">⏸ Jeda</button>
+          <label class="lab-speed-label">Kecepatan
+            <select id="labSpeed" class="text-input lab-speed-select" aria-label="Kecepatan animasi">
+              <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <aside class="lab-info">
+        <div class="lab-safety" id="labSafety">Simulasi virtual — tidak ada aksi di dunia nyata.</div>
+        <div class="lab-materials" id="labMaterials"></div>
+        <div class="lab-fact-card">
+          <span class="lab-fact-label">Apa yang terjadi?</span>
+          <p id="labSummary">Belum ada eksperimen.</p>
+        </div>
+        <div class="lab-fact-card">
+          <span class="lab-fact-label">Konsep sains</span>
+          <p id="labConcept">—</p>
+          <code class="lab-equation hidden" id="labEquation"></code>
+        </div>
+        <div class="lab-metrics hidden" id="labMetrics"></div>
+        <div class="lab-challenge" id="labChallenge">💡 Coba prediksi hasilnya sebelum menekan ulang.</div>
+        <button class="btn btn-primary btn-block" id="labAskAiBtn" type="button">Tanya AI tentang eksperimen ini</button>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="chartModal">
+  <div class="chart-modal-card" role="dialog" aria-modal="true" aria-labelledby="chartModalTitle">
+    <div class="chart-modal-head"><h2 id="chartModalTitle">Grafik</h2><button class="icon-button" id="closeChartModal" aria-label="Tutup"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+    <div class="chart-canvas-wrap"><canvas id="artifactChart"></canvas></div>
+  </div>
+</div>
+<script src="../../node_modules/chart.js/dist/chart.umd.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

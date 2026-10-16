@@ -1,0 +1,10 @@
+{
+  "name": "spotify",
+  "version": "1.0.0",
+  "description": "Cari lagu/artis/album di katalog publik Spotify. Pakai Client Credentials (app-only) — tidak bisa play/pause atau lihat playlist pribadi.",
+  "main": "index.js",
+  "secrets": [
+    "plugin:spotify:clientId",
+    "plugin:spotify:clientSecret"
+  ]
+}
